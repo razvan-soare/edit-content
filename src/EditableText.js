@@ -31,14 +31,23 @@ const EditableText = ({ children, fileUrl, id }) => {
   const defaultContent = renderToStaticMarkup(children);
   const editorRef = useRef(null);
   const [previewValue, setPreviewValue] = useState(null);
+  const [showEdit, setShowEdit] = useState(null);
 
   const save = () => {
     const { view } = editorRef.current;
 
     // Parse the editor value to html and then to React nodes
     const nodeHtml = parse(EditorUtils.getHtml(view.state));
-    // Change the React nodes to JSX text
-    const jsxHtml = reactElementToJSXString(nodeHtml);
+
+    let jsxHtml = "";
+    if (nodeHtml && nodeHtml.length > 0) {
+      nodeHtml.forEach((node) => {
+        jsxHtml += reactElementToJSXString(node);
+      });
+    } else {
+      // Change the React nodes to JSX text
+      jsxHtml = reactElementToJSXString(nodeHtml);
+    }
 
     // Create body and make request
     const body = {
@@ -47,7 +56,14 @@ const EditableText = ({ children, fileUrl, id }) => {
       id,
     };
 
-    axios.post("/api/update", body);
+    axios
+      .post("/api/update", body)
+      .then(() => {
+        setShowEdit(false);
+      })
+      .catch((err) =>
+        console.error("We encountered an error while saving the file:", err)
+      );
     setPreviewValue(false);
   };
 
@@ -59,30 +75,37 @@ const EditableText = ({ children, fileUrl, id }) => {
 
   return (
     <>
-      <span>{previewValue ? previewValue : children}</span>
-      <Editor
-        tools={[
-          [Bold, Italic, Underline, Strikethrough, ForeColor],
-          [AlignLeft, AlignCenter, AlignRight, AlignJustify],
-          [Indent, Outdent],
-          [OrderedList, UnorderedList],
-          FontSize,
-          FormatBlock,
-          [Undo, Redo],
-          [Link, Unlink],
-        ]}
-        contentStyle={{ height: 160, width: "100%" }}
-        defaultContent={defaultContent}
-        ref={editorRef}
-      />
-      <div className="k-button-group button-group">
-        <button className="k-button k-button-icontext" onClick={save}>
-          Save
-        </button>
-        <button className="k-button k-button-icontext" onClick={preview}>
-          Preview
-        </button>
-      </div>
+      <span onClickCapture={() => setShowEdit(true)}>
+        {previewValue ? previewValue : children}
+      </span>
+
+      {showEdit && (
+        <>
+          <Editor
+            tools={[
+              [Bold, Italic, Underline, Strikethrough, ForeColor],
+              [AlignLeft, AlignCenter, AlignRight, AlignJustify],
+              [Indent, Outdent],
+              [OrderedList, UnorderedList],
+              FontSize,
+              FormatBlock,
+              [Undo, Redo],
+              [Link, Unlink],
+            ]}
+            contentStyle={{ height: 160, width: "100%" }}
+            defaultContent={defaultContent}
+            ref={editorRef}
+          />
+          <div className="k-button-group button-group">
+            <button className="k-button k-button-icontext" onClick={save}>
+              Save
+            </button>
+            <button className="k-button k-button-icontext" onClick={preview}>
+              Preview
+            </button>
+          </div>
+        </>
+      )}
     </>
   );
 };
